@@ -253,10 +253,7 @@ class Transformer(nn.Module):
 
         scaled_logits = null_logits + (logits - null_logits) * cond_scale
 
-        if return_embed:
-            return scaled_logits, embed
-
-        return scaled_logits
+        return (scaled_logits, embed) if return_embed else scaled_logits
 
     def forward_with_neg_prompt(
         self,
@@ -271,10 +268,7 @@ class Transformer(nn.Module):
 
         logits = neg_logits + (pos_logits - neg_logits) * cond_scale
 
-        if return_embed:
-            return scaled_logits, embed
-
-        return scaled_logits
+        return (scaled_logits, embed) if return_embed else scaled_logits
 
     def forward(
         self,
@@ -444,12 +438,10 @@ class MaskGit(nn.Module):
         super().__init__()
         self.vae = vae.copy_for_eval() if exists(vae) else None
 
-        if exists(cond_vae):
-            self.cond_vae = cond_vae.eval()
-        else:
-            self.cond_vae = self.vae
-
-        assert not (exists(cond_vae) and not exists(cond_image_size)), 'cond_image_size must be specified if conditioning'
+        self.cond_vae = cond_vae.eval() if exists(cond_vae) else self.vae
+        assert not exists(cond_vae) or exists(
+            cond_image_size
+        ), 'cond_image_size must be specified if conditioning'
 
         self.image_size = image_size
         self.cond_image_size = cond_image_size
@@ -614,11 +606,7 @@ class MaskGit(nn.Module):
 
         ids = rearrange(ids, 'b (i j) -> b i j', i = fmap_size, j = fmap_size)
 
-        if not exists(self.vae):
-            return ids
-
-        images = self.vae.decode_from_ids(ids)
-        return images
+        return ids if not exists(self.vae) else self.vae.decode_from_ids(ids)
 
     def forward(
         self,
@@ -780,12 +768,9 @@ class Muse(nn.Module):
             temperature = temperature,
             timesteps = default(superres_timesteps, timesteps)
         )
-        
+
         if return_pil_images:
             lowres_image = list(map(T.ToPILImage(), lowres_image))
             superres_image = list(map(T.ToPILImage(), superres_image))            
 
-        if not return_lowres:
-            return superres_image
-
-        return superres_image, lowres_image
+        return superres_image if not return_lowres else (superres_image, lowres_image)
