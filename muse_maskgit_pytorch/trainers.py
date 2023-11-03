@@ -38,10 +38,7 @@ def noop(*args, **kwargs):
     pass
 
 def find_index(arr, cond):
-    for ind, el in enumerate(arr):
-        if cond(el):
-            return ind
-    return None
+    return next((ind for ind, el in enumerate(arr) if cond(el)), None)
 
 def find_and_pop(arr, cond, default = None):
     ind = find_index(arr, cond)
@@ -49,15 +46,11 @@ def find_and_pop(arr, cond, default = None):
     if exists(ind):
         return arr.pop(ind)
 
-    if callable(default):
-        return default()
-
-    return default
+    return default() if callable(default) else default
 
 def cycle(dl):
     while True:
-        for data in dl:
-            yield data
+        yield from dl
 
 def cast_tuple(t):
     return t if isinstance(t, (tuple, list)) else (t,)
@@ -76,9 +69,7 @@ def pair(val):
     return val if isinstance(val, tuple) else (val, val)
 
 def convert_image_to_fn(img_type, image):
-    if image.mode != img_type:
-        return image.convert(img_type)
-    return image
+    return image.convert(img_type) if image.mode != img_type else image
 
 # image related helpers fnuctions and dataset
 
@@ -245,7 +236,9 @@ class VQGanVAETrainer(nn.Module):
 
         self.results_folder = Path(results_folder)
 
-        if len([*self.results_folder.glob('**/*')]) > 0 and yes_or_no('do you want to clear previous experiment checkpoints and results?'):
+        if [*self.results_folder.glob('**/*')] and yes_or_no(
+            'do you want to clear previous experiment checkpoints and results?'
+        ):
             rmtree(str(self.results_folder))
 
         self.results_folder.mkdir(parents = True, exist_ok = True)
@@ -281,7 +274,10 @@ class VQGanVAETrainer(nn.Module):
 
     @property
     def is_distributed(self):
-        return not (self.accelerator.distributed_type == DistributedType.NO and self.accelerator.num_processes == 1)
+        return (
+            self.accelerator.distributed_type != DistributedType.NO
+            or self.accelerator.num_processes != 1
+        )
 
     @property
     def is_main(self):

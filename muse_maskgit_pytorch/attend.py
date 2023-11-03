@@ -92,12 +92,6 @@ class Attend(nn.Module):
 
         try:
             raise Exception()
-            with torch.backends.cuda.sdp_kernel(**self.cuda_config._asdict()):
-                out = F.scaled_dot_product_attention(
-                    q, k, v,
-                    attn_mask = mask,
-                    dropout_p = self.dropout if self.training else 0.
-                )
         except:
             print_once('no hardware detected, falling back to naive implementation from memory-efficient-attention-pytorch library')
             self.no_hardware_detected = True
@@ -133,8 +127,4 @@ class Attend(nn.Module):
         attn = sim.softmax(dim = -1)
         attn = self.attn_dropout(attn)
 
-        # aggregate values
-
-        out = einsum("b h i j, b h j d -> b h i d", attn, v)
-
-        return out
+        return einsum("b h i j, b h j d -> b h i d", attn, v)
